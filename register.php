@@ -1,25 +1,37 @@
+
 <?php
 include 'config.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
 
-    // Check if username already exists
-    $checkUser = $conn->query("SELECT * FROM users WHERE username='$username'");
-    if ($checkUser->num_rows > 0) {
-        echo "Username already exists. <a href='register.php'>Try again</a>";
+    if ($username === '' || $password === '') {
+        echo "Please fill all fields.";
     } else {
-        $sql = "INSERT INTO users (username, password) VALUES ('$username', '$password')";
-        if ($conn->query($sql) === TRUE) {
-            echo "Registration successful. <a href='login.php'>Login here</a>";
+        $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            echo "Username already exists. <a href='register.php'>Try again</a>";
         } else {
-            echo "Error: " . $conn->error;
+            $hash = password_hash($password, PASSWORD_DEFAULT);
+            $ins = $conn->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+            $ins->bind_param("ss", $username, $hash);
+            if ($ins->execute()) {
+                echo "Registration successful. <a href='login.php'>Login here</a>";
+            } else {
+                echo "Error: " . $conn->error;
+            }
+            $ins->close();
         }
+        $stmt->close();
     }
 }
 ?>
-
+<!-- ...existing HTML... -->
 <h2>Register</h2>
 <form method="POST" action="">
     Username: <input type="text" name="username" required><br>
